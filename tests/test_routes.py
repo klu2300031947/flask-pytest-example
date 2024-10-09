@@ -1,73 +1,61 @@
-from flask import Flask
 import json
-
-from flask_pytest_example.handlers.routes import configure_routes
-
-
-def test_base_route():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/'
-
-    response = client.get(url)
-    assert response.get_data() == b'Hello, World!'
-    assert response.status_code == 200
+from django.urls import reverse
+from rest_framework import status
+from rest_framework.test import APITestCase
+from myapp.models import MyModel
 
 
-def test_post_route__success():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
+class MyModelTests(APITestCase):
 
-    mock_request_headers = {
-        'authorization-sha256': '123'
-    }
+    def setUp(self):
+        # Create a sample record to test the READ operation
+        self.my_model = MyModel.objects.create(
+            name="Test Model",
+            description="This is a test model"
+        )
+        self.url = reverse('mymodel-detail', args=[self.my_model.id])
 
-    mock_request_data = {
-        'request_id': '123',
-        'payload': {
-            'py': 'pi',
-            'java': 'script'
+    def test_create_my_model(self):
+        """Test the CREATE operation (POST request) for MyModel"""
+        url = reverse('mymodel-list')
+        data = {
+            'name': 'New Model',
+            'description': 'Description for new model'
         }
-    }
+        response = self.client.post(url, data, format='json')
 
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 200
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['name'], 'New Model')
+        self.assertEqual(response.data['description'], 'Description for new model')
 
+    def test_read_my_model(self):
+        """Test the READ operation (GET request) for MyModel"""
+        # Perform a GET request to read the data
+        response = self.client.get(self.url)
 
-def test_post_route__failure__unauthorized():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
+        # Assert that the request was successful
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    mock_request_headers = {}
+        # Assert that the response contains the correct data
+        self.assertEqual(response.data['name'], self.my_model.name)
+        self.assertEqual(response.data['description'], self.my_model.description)
 
-    mock_request_data = {
-        'request_id': '123',
-        'payload': {
-            'py': 'pi',
-            'java': 'script'
+    def test_update_my_model(self):
+        """Test the UPDATE operation (PUT request) for MyModel"""
+        data = {
+            'name': 'Updated Model',
+            'description': 'Updated description for model'
         }
-    }
+        response = self.client.put(self.url, data, format='json')
 
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 401
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.my_model.refresh_from_db()  # Refresh the model instance with updated data
+        self.assertEqual(self.my_model.name, 'Updated Model')
+        self.assertEqual(self.my_model.description, 'Updated description for model')
 
+    def test_delete_my_model(self):
+        """Test the DELETE operation for MyModel"""
+        response = self.client.delete(self.url)
 
-def test_post_route__failure__bad_request():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
-
-    mock_request_headers = {
-        'authorization-sha256': '123'
-    }
-
-    mock_request_data = {}
-
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 400
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(MyModel.objects.filter(id=self.my_model.id).exists())
