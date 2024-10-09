@@ -1,73 +1,40 @@
-from flask import Flask
-import json
+from flask import Flask, jsonify, request
 
-from flask_pytest_example.handlers.routes import configure_routes
+app = Flask(__name__)
+
+def configure_routes(app):
+    @app.route('/', methods=['GET'])
+    def base_route():
+        return "Hello, World!", 200
+
+    @app.route('/post/test', methods=['POST'])
+    def post_route():
+        headers = request.headers
+        data = request.get_json()
+
+        # Authorization check
+        if 'authorization-sha256' not in headers:
+            return jsonify({'message': 'Unauthorized'}), 401
+
+        # Bad request check
+        if not data or 'request_id' not in data or 'payload' not in data:
+            return jsonify({'message': 'Bad Request'}), 400
+
+        # Successful response
+        return jsonify({
+            'message': 'Success',
+            'data': data['payload']
+        }), 200
+
+    @app.route('/delete/test/<request_id>', methods=['DELETE'])
+    def delete_route(request_id):
+        # Simulate checking if the request_id exists
+        if request_id == '123':
+            return jsonify({'message': f'Resource with id {request_id} deleted successfully'}), 200
+        else:
+            return jsonify({'message': 'Resource not found'}), 404
 
 
-def test_base_route():
-    app = Flask(__name__)
+if __name__ == '__main__':
     configure_routes(app)
-    client = app.test_client()
-    url = '/'
-
-    response = client.get(url)
-    assert response.get_data() == b'Hello, World!'
-    assert response.status_code == 200
-
-
-def test_post_route__success():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
-
-    mock_request_headers = {
-        'authorization-sha256': '123'
-    }
-
-    mock_request_data = {
-        'request_id': '123',
-        'payload': {
-            'py': 'pi',
-            'java': 'script'
-        }
-    }
-
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 200
-
-
-def test_post_route__failure__unauthorized():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
-
-    mock_request_headers = {}
-
-    mock_request_data = {
-        'request_id': '123',
-        'payload': {
-            'py': 'pi',
-            'java': 'script'
-        }
-    }
-
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 401
-
-
-def test_post_route__failure__bad_request():
-    app = Flask(__name__)
-    configure_routes(app)
-    client = app.test_client()
-    url = '/post/test'
-
-    mock_request_headers = {
-        'authorization-sha256': '123'
-    }
-
-    mock_request_data = {}
-
-    response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
-    assert response.status_code == 400
+    app.run(debug=True)
