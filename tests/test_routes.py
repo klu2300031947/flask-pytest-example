@@ -1,6 +1,4 @@
-from flask import Flask
-import json
-
+from flask import Flask, json
 from flask_pytest_example.handlers.routes import configure_routes
 
 
@@ -71,3 +69,18 @@ def test_post_route__failure__bad_request():
 
     response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
     assert response.status_code == 400
+
+
+# LIST BY NAME test case
+def test_list_by_name_route__success():
+    app = Flask(__name__)
+    configure_routes(app)
+    client = app.test_client()
+    url = '/list/name/JohnDoe'  # Replace 'JohnDoe' with the actual name you are filtering by
+
+    response = client.get(url)
+    data = json.loads(response.get_data(as_text=True))
+
+    assert response.status_code == 200
+    assert isinstance(data, dict)  # Ensure response is a dictionary with details
+    assert data.get('name') == 'JohnDoe'  # Check that the returned name matches
