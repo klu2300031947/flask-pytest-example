@@ -1,6 +1,4 @@
-from flask import Flask
-import json
-
+from flask import Flask, json
 from flask_pytest_example.handlers.routes import configure_routes
 
 
@@ -71,3 +69,19 @@ def test_post_route__failure__bad_request():
 
     response = client.post(url, data=json.dumps(mock_request_data), headers=mock_request_headers)
     assert response.status_code == 400
+
+
+# LIST BY AVAILABILITY test case
+def test_list_by_availability_route__success():
+    app = Flask(__name__)
+    configure_routes(app)
+    client = app.test_client()
+    url = '/list/availability/in-stock'  # Replace 'in-stock' with the actual availability status
+
+    response = client.get(url)
+    data = json.loads(response.get_data(as_text=True))
+
+    assert response.status_code == 200
+    assert isinstance(data, list)  # Ensure the response is a list of items
+    assert len(data) > 0  # Check that there is at least one item available
+    assert data[0].get('availability') == 'in-stock'  # Verify the availability of the first item
